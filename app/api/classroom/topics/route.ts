@@ -9,8 +9,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const courseId = searchParams.get('courseId')
     if (!courseId) return NextResponse.json({ error: 'courseId required' }, { status: 400 })
-    const { fetchTeachers } = await import('@/lib/classroom')
-    const teachers = await fetchTeachers(session.provider_token, courseId)
-    return NextResponse.json({ teachers })
+    const { fetchTopics } = await import('@/lib/classroom')
+    const topics = await fetchTopics(session.provider_token, courseId)
+    return NextResponse.json({ topics })
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
 }
