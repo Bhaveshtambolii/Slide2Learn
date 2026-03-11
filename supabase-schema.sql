@@ -70,3 +70,7 @@ CREATE POLICY "Users can upload their own videos"
 CREATE POLICY "Videos are publicly readable"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'classroom-videos');
+
+-- ── Add new columns for course management ───────────────────
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS custom_name TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS archived     BOOLEAN DEFAULT FALSE;
