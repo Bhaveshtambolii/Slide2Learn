@@ -12,21 +12,21 @@ type Course    = { id: string; name: string; section?: string; color?: string }
 type Post      = { id: string; title: string; post_type: string; status: string; attachment_count: number; created_time: string }
 type VideoItem = { id: string; title: string; status: string; public_url?: string; video_style: string; created_at: string }
 
-const COLORS = ['#E85D26','#2563EB','#16A34A','#9333EA','#CA8A04','#0891B2']
+const COLORS = ['#0D0D0D','#3B3B3B','#5C5C5C','#8C8070','#0D0D0D','#3B3B3B']
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { icon: React.ReactNode; cls: string }> = {
-    done:       { icon: <CheckCircle2 className="w-3.5 h-3.5" />, cls: 'bg-green-100 text-green-700' },
-    processing: { icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, cls: 'bg-blue-100 text-blue-700' },
-    error:      { icon: <AlertCircle className="w-3.5 h-3.5" />, cls: 'bg-red-100 text-red-700' },
-    pending:    { icon: <Clock className="w-3.5 h-3.5" />, cls: 'bg-border text-muted' },
-    ready:      { icon: <CheckCircle2 className="w-3.5 h-3.5" />, cls: 'bg-green-100 text-green-700' },
-    generating: { icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />, cls: 'bg-blue-100 text-blue-700' },
+function StatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; bg: string; color: string; icon: React.ReactNode }> = {
+    done:       { label:'Done',       bg:'#ECFDF5', color:'#065F46', icon:<CheckCircle2 size={11}/> },
+    processing: { label:'Processing', bg:'#EFF6FF', color:'#1D4ED8', icon:<Loader2 size={11} style={{animation:'spin 1s linear infinite'}}/> },
+    error:      { label:'Error',      bg:'#FEF2F2', color:'#991B1B', icon:<AlertCircle size={11}/> },
+    pending:    { label:'Pending',    bg:'#F5F5F5', color:'#6B7280', icon:<Clock size={11}/> },
+    ready:      { label:'Ready',      bg:'#ECFDF5', color:'#065F46', icon:<CheckCircle2 size={11}/> },
+    generating: { label:'Generating', bg:'#EFF6FF', color:'#1D4ED8', icon:<Loader2 size={11} style={{animation:'spin 1s linear infinite'}}/> },
   }
   const s = map[status] || map.pending
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.cls}`}>
-      {s.icon}{status}
+    <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:s.bg, color:s.color, padding:'4px 10px', borderRadius:100, fontSize:12, fontWeight:600 }}>
+      {s.icon}{s.label}
     </span>
   )
 }
@@ -35,15 +35,15 @@ export default function Dashboard() {
   const supabase = createClient()
   const router   = useRouter()
 
-  const [user,          setUser]          = useState<any>(null)
-  const [courses,       setCourses]       = useState<Course[]>([])
-  const [activeCourse,  setActiveCourse]  = useState<string | null>(null)
-  const [posts,         setPosts]         = useState<Post[]>([])
-  const [videos,        setVideos]        = useState<VideoItem[]>([])
-  const [syncing,       setSyncing]       = useState(false)
-  const [loadingCourses,setLoadingCourses]= useState(true)
-  const [syncMsg,       setSyncMsg]       = useState('')
-  const [tab,           setTab]           = useState<'posts'|'videos'>('posts')
+  const [user,           setUser]           = useState<any>(null)
+  const [courses,        setCourses]        = useState<Course[]>([])
+  const [activeCourse,   setActiveCourse]   = useState<string|null>(null)
+  const [posts,          setPosts]          = useState<Post[]>([])
+  const [videos,         setVideos]         = useState<VideoItem[]>([])
+  const [syncing,        setSyncing]        = useState(false)
+  const [loadingCourses, setLoadingCourses] = useState(true)
+  const [syncMsg,        setSyncMsg]        = useState('')
+  const [tab,            setTab]            = useState<'posts'|'videos'>('posts')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -70,9 +70,9 @@ export default function Dashboard() {
     if (!activeCourse) return
     const [pr, vr] = await Promise.all([
       supabase.from('posts').select('*').eq('course_id', activeCourse).order('created_time', { ascending: false }),
-      supabase.from('videos').select('*').eq('course_id', activeCourse).order('created_at', { ascending: false }),
+      supabase.from('videos').select('*').eq('course_id', activeCourse).order('created_at',   { ascending: false }),
     ])
-    setPosts(pr.data || [])
+    setPosts(pr.data  || [])
     setVideos(vr.data || [])
   }, [activeCourse])
 
@@ -82,198 +82,257 @@ export default function Dashboard() {
     if (!activeCourse) return
     setSyncing(true); setSyncMsg('')
     try {
-      const res  = await fetch('/api/classroom/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: activeCourse }),
-      })
+      const res  = await fetch('/api/classroom/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ courseId: activeCourse }) })
       const data = await res.json()
-      setSyncMsg(data.newPosts > 0 ? `✓ ${data.newPosts} new post(s) queued for video generation!` : '✓ All caught up — no new posts.')
+      setSyncMsg(data.newPosts > 0 ? `✓ ${data.newPosts} new post(s) added!` : '✓ All caught up!')
       await loadData()
-    } catch { setSyncMsg('⚠ Sync failed. Try again.') }
+    } catch { setSyncMsg('⚠ Sync failed.') }
     setSyncing(false)
-    setTimeout(() => setSyncMsg(''), 5000)
+    setTimeout(() => setSyncMsg(''), 4000)
   }
 
   const signOut = async () => { await supabase.auth.signOut(); router.push('/') }
   const active  = courses.find(c => c.id === activeCourse)
 
   return (
-    <div className="min-h-screen flex flex-col bg-paper">
+    <div style={{ fontFamily:"'DM Sans', sans-serif", background:'#F5F0E8', minHeight:'100vh', color:'#0D0D0D', display:'flex', flexDirection:'column' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-      {/* Navbar */}
-      <nav className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border bg-paper/90 backdrop-blur">
-        <span className="font-display text-xl font-black">
-          Slide<span className="text-accent italic">2</span>Learn
-        </span>
-        <div className="flex items-center gap-4">
-          {user && <span className="text-sm text-muted hidden md:block">{user.email}</span>}
-          <button onClick={signOut} className="flex items-center gap-1.5 text-sm text-muted hover:text-accent transition-colors">
-            <LogOut className="w-4 h-4" /> Sign out
+        .sidebar-item {
+          display: flex; align-items: center; gap: 12px;
+          padding: 10px 16px; cursor: pointer; border-radius: 10px;
+          margin: 2px 8px; transition: background 0.15s;
+          text-decoration: none; color: inherit;
+        }
+        .sidebar-item:hover { background: #E8E2D8; }
+        .sidebar-item.active { background: #0D0D0D; color: #F5F0E8; }
+
+        .stat-card {
+          background: #EDE8DF;
+          border: 1px solid #D4CCBE;
+          border-radius: 16px;
+          padding: 20px 24px;
+          flex: 1;
+        }
+
+        .post-row {
+          display: flex; align-items: center; gap: 16px;
+          background: #EDE8DF; border: 1px solid #D4CCBE;
+          border-radius: 14px; padding: 14px 18px;
+          transition: border-color 0.15s;
+        }
+        .post-row:hover { border-color: #0D0D0D; }
+
+        .video-card {
+          background: #EDE8DF; border: 1px solid #D4CCBE;
+          border-radius: 18px; overflow: hidden;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+        .video-card:hover { border-color: #0D0D0D; transform: translateY(-2px); }
+
+        .tab-btn {
+          padding: 8px 18px; border-radius: 8px; border: none;
+          font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+          cursor: pointer; transition: all 0.15s;
+          background: transparent; color: #8C8070;
+        }
+        .tab-btn.active { background: #0D0D0D; color: #F5F0E8; }
+        .tab-btn:hover:not(.active) { color: #0D0D0D; }
+
+        .sync-btn {
+          display: flex; align-items: center; gap: 8px;
+          background: #0D0D0D; color: #F5F0E8;
+          border: none; border-radius: 10px; padding: 10px 18px;
+          font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+          cursor: pointer; transition: all 0.15s;
+        }
+        .sync-btn:hover:not(:disabled) { background: #E85D26; }
+        .sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .icon-avatar {
+          width: 34px; height: 34px; border-radius: 9px;
+          display: flex; align-items: center; justify-content: center;
+          color: #F5F0E8; font-family: 'Playfair Display', serif;
+          font-weight: 900; font-size: 15px; flex-shrink: 0;
+        }
+      `}</style>
+
+      {/* ── Topbar ── */}
+      <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 32px', borderBottom:'1px solid #D4CCBE', background:'#F5F0E8', position:'sticky', top:0, zIndex:20 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+          <div style={{ width:28, height:28, background:'#0D0D0D', borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Play size={12} fill="#F5F0E8" color="#F5F0E8" />
+          </div>
+          <span style={{ fontFamily:'Playfair Display, serif', fontSize:18, fontWeight:900, letterSpacing:'-0.02em' }}>
+            Slide<em style={{ color:'#E85D26' }}>2Learn</em>
+          </span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+          {user && <span style={{ fontSize:13, color:'#8C8070' }}>{user.email}</span>}
+          <button onClick={signOut} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid #D4CCBE', borderRadius:8, padding:'7px 14px', fontSize:13, color:'#8C8070', cursor:'pointer', fontFamily:'DM Sans, sans-serif', transition:'all 0.15s' }}>
+            <LogOut size={13}/> Sign out
           </button>
         </div>
       </nav>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
 
-        {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-sm">My Courses</h2>
-              <p className="text-xs text-muted">Google Classroom</p>
+        {/* ── Sidebar ── */}
+        <aside style={{ width:240, borderRight:'1px solid #D4CCBE', background:'#EDE8DF', display:'flex', flexDirection:'column', flexShrink:0, overflowY:'auto' }}>
+          <div style={{ padding:'16px 16px 10px', borderBottom:'1px solid #D4CCBE' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
+              <span style={{ fontSize:12, fontWeight:600, color:'#0D0D0D' }}>My Courses</span>
+              <button onClick={loadCourses} style={{ background:'none', border:'none', cursor:'pointer', color:'#8C8070', padding:4, borderRadius:6, display:'flex', transition:'color 0.15s' }}>
+                <RefreshCw size={13}/>
+              </button>
             </div>
-            <button onClick={loadCourses} className="text-muted hover:text-ink transition-colors p-1">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+            <span style={{ fontSize:11, color:'#8C8070' }}>Google Classroom</span>
           </div>
 
-          <div className="flex-1 py-2">
+          <div style={{ flex:1, paddingTop:6 }}>
             {loadingCourses ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted" />
+              <div style={{ display:'flex', justifyContent:'center', padding:32 }}>
+                <Loader2 size={18} style={{ animation:'spin 1s linear infinite', color:'#8C8070' }}/>
               </div>
             ) : courses.length === 0 ? (
-              <p className="text-xs text-muted px-4 py-6 text-center leading-relaxed">
-                No courses found.<br/>Grant Classroom access and refresh.
-              </p>
+              <p style={{ fontSize:12, color:'#8C8070', padding:'16px', textAlign:'center', lineHeight:1.6 }}>No courses found.<br/>Grant Classroom access and refresh.</p>
             ) : courses.map(c => (
-              <button key={c.id} onClick={() => setActiveCourse(c.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-border/30 ${activeCourse === c.id ? 'bg-border/50' : ''}`}>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0"
-                  style={{ backgroundColor: c.color }}>{c.name.charAt(0)}</div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{c.name}</p>
-                  {c.section && <p className="text-xs text-muted truncate">{c.section}</p>}
+              <div key={c.id} onClick={() => setActiveCourse(c.id)}
+                className={`sidebar-item${activeCourse === c.id ? ' active' : ''}`}>
+                <div className="icon-avatar" style={{ background: activeCourse === c.id ? '#F5F0E8' : c.color, color: activeCourse === c.id ? '#0D0D0D' : '#F5F0E8' }}>
+                  {c.name.charAt(0)}
                 </div>
-                {activeCourse === c.id && <ChevronRight className="w-3.5 h-3.5 text-muted shrink-0" />}
-              </button>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <p style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</p>
+                  {c.section && <p style={{ fontSize:11, opacity:0.6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.section}</p>}
+                </div>
+                {activeCourse === c.id && <ChevronRight size={13} style={{ flexShrink:0, opacity:0.5 }}/>}
+              </div>
             ))}
           </div>
 
-          <div className="p-4 border-t border-border">
-            <p className="text-xs text-muted leading-relaxed">
-              💡 Run <code className="font-mono bg-border/60 px-1 rounded text-[10px]">notebooklm_worker.py</code> locally to start generating AI video explanations.
+          <div style={{ padding:'12px 16px', borderTop:'1px solid #D4CCBE' }}>
+            <p style={{ fontSize:11, color:'#8C8070', lineHeight:1.6 }}>
+              💡 Run <code style={{ background:'#D4CCBE', padding:'1px 5px', borderRadius:4, fontSize:10 }}>notebooklm_worker.py</code> locally to auto-generate AI videos.
             </p>
           </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* ── Main ── */}
+        <main style={{ flex:1, overflowY:'auto', padding:'28px 36px' }}>
           {!active ? (
-            <div className="h-full flex items-center justify-center text-muted">
-              <div className="text-center">
-                <LayoutGrid className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">Select a course to get started</p>
-                <p className="text-sm mt-1">Your AI video explanations will appear here</p>
-              </div>
+            <div style={{ height:'100%', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12, color:'#8C8070' }}>
+              <LayoutGrid size={40} style={{ opacity:0.2 }}/>
+              <p style={{ fontWeight:500 }}>Select a course to get started</p>
             </div>
           ) : (
             <>
               {/* Course header */}
-              <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-                    style={{ backgroundColor: active.color }}>{active.name.charAt(0)}</div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                  <div className="icon-avatar" style={{ width:48, height:48, borderRadius:14, background:active.color, fontSize:20 }}>
+                    {active.name.charAt(0)}
+                  </div>
                   <div>
-                    <h1 className="font-display text-2xl font-bold leading-tight">{active.name}</h1>
-                    {active.section && <p className="text-sm text-muted">{active.section}</p>}
+                    <h1 style={{ fontFamily:'Playfair Display, serif', fontSize:'clamp(20px,3vw,28px)', fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1 }}>{active.name}</h1>
+                    {active.section && <p style={{ fontSize:13, color:'#8C8070', marginTop:2 }}>{active.section}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {syncMsg && <span className="text-sm text-muted animate-fade-in">{syncMsg}</span>}
-                  <button onClick={syncCourse} disabled={syncing}
-                    className="flex items-center gap-2 bg-ink text-paper px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-accent transition-colors disabled:opacity-60">
-                    {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  {syncMsg && <span style={{ fontSize:13, color:'#8C8070' }}>{syncMsg}</span>}
+                  <button className="sync-btn" onClick={syncCourse} disabled={syncing}>
+                    {syncing ? <Loader2 size={14} style={{ animation:'spin 1s linear infinite' }}/> : <RefreshCw size={14}/>}
                     {syncing ? 'Syncing…' : 'Sync Now'}
                   </button>
                 </div>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div style={{ display:'flex', gap:12, marginBottom:24 }}>
                 {[
-                  { label: 'Total Posts',   value: posts.length,                                    icon: BookOpen },
-                  { label: 'Videos Ready',  value: videos.filter(v => v.status === 'ready').length,  icon: Video    },
-                  { label: 'Pending',       value: posts.filter(p => p.status === 'pending').length, icon: Clock    },
-                ].map(({ label, value, icon: Icon }) => (
-                  <div key={label} className="bg-surface border border-border rounded-2xl p-4">
-                    <div className="flex items-center gap-2 text-muted mb-1">
-                      <Icon className="w-4 h-4" />
-                      <span className="text-xs">{label}</span>
+                  { label:'Total Posts',    value:posts.length,                                       icon:<BookOpen size={14}/> },
+                  { label:'Videos Ready',   value:videos.filter(v => v.status==='ready').length,      icon:<Video size={14}/> },
+                  { label:'Pending',        value:posts.filter(p => p.status==='pending').length,     icon:<Clock size={14}/> },
+                ].map(({ label, value, icon }) => (
+                  <div key={label} className="stat-card">
+                    <div style={{ display:'flex', alignItems:'center', gap:6, color:'#8C8070', marginBottom:8 }}>
+                      {icon}
+                      <span style={{ fontSize:12, fontWeight:500 }}>{label}</span>
                     </div>
-                    <p className="font-display text-4xl font-black">{value}</p>
+                    <div style={{ fontFamily:'Playfair Display, serif', fontSize:36, fontWeight:900, letterSpacing:'-0.02em' }}>{value}</div>
                   </div>
                 ))}
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-1 mb-4 bg-surface border border-border rounded-xl p-1 w-fit">
-                {(['posts', 'videos'] as const).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${tab === t ? 'bg-paper shadow-sm text-ink' : 'text-muted hover:text-ink'}`}>
-                    {t === 'posts' ? `Slides & Posts (${posts.length})` : `AI Videos (${videos.length})`}
+              <div style={{ display:'flex', gap:4, background:'#EDE8DF', border:'1px solid #D4CCBE', borderRadius:12, padding:4, width:'fit-content', marginBottom:20 }}>
+                {(['posts','videos'] as const).map(t => (
+                  <button key={t} className={`tab-btn${tab===t?' active':''}`} onClick={() => setTab(t)}>
+                    {t === 'posts' ? `Posts (${posts.length})` : `Videos (${videos.length})`}
                   </button>
                 ))}
               </div>
 
-              {/* Posts list */}
+              {/* Posts */}
               {tab === 'posts' && (
-                <div className="space-y-2">
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {posts.length === 0 ? (
-                    <div className="py-16 text-center text-muted">
-                      <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                      <p className="font-medium mb-1">No posts synced yet</p>
-                      <p className="text-sm">Click "Sync Now" to fetch slides and posts from Classroom</p>
+                    <div style={{ textAlign:'center', padding:'64px 0', color:'#8C8070' }}>
+                      <BookOpen size={36} style={{ opacity:0.2, margin:'0 auto 12px', display:'block' }}/>
+                      <p style={{ fontWeight:500, marginBottom:4 }}>No posts synced yet</p>
+                      <p style={{ fontSize:13 }}>Click "Sync Now" to fetch posts from Classroom</p>
                     </div>
                   ) : posts.map(post => (
-                    <div key={post.id} className="flex items-center gap-4 bg-surface border border-border rounded-xl px-4 py-3 hover:border-accent/30 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{post.title}</p>
-                        <p className="text-xs text-muted mt-0.5">
-                          {post.post_type} · {post.attachment_count} file(s)
-                          {post.created_time && ` · ${formatDistanceToNow(new Date(post.created_time), { addSuffix: true })}`}
+                    <div key={post.id} className="post-row">
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ fontWeight:500, fontSize:14, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:3 }}>{post.title}</p>
+                        <p style={{ fontSize:12, color:'#8C8070' }}>
+                          {post.post_type} · {post.attachment_count} attachment(s)
+                          {post.created_time && ` · ${formatDistanceToNow(new Date(post.created_time), { addSuffix:true })}`}
                         </p>
                       </div>
-                      <StatusBadge status={post.status} />
+                      <StatusPill status={post.status}/>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Videos grid */}
+              {/* Videos */}
               {tab === 'videos' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px,1fr))', gap:16 }}>
                   {videos.length === 0 ? (
-                    <div className="col-span-3 py-16 text-center text-muted">
-                      <Video className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                      <p className="font-medium mb-1">No AI videos yet</p>
-                      <p className="text-sm">Sync a course and run the worker to generate video explanations</p>
+                    <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'64px 0', color:'#8C8070' }}>
+                      <Video size={36} style={{ opacity:0.2, margin:'0 auto 12px', display:'block' }}/>
+                      <p style={{ fontWeight:500, marginBottom:4 }}>No videos yet</p>
+                      <p style={{ fontSize:13 }}>Videos appear here once the worker generates them</p>
                     </div>
                   ) : videos.map(v => (
-                    <div key={v.id} className="bg-surface border border-border rounded-2xl overflow-hidden group hover:border-accent/40 transition-colors">
-                      <div className="aspect-video bg-ink/5 flex items-center justify-center relative">
+                    <div key={v.id} className="video-card">
+                      {/* Thumbnail */}
+                      <div style={{ aspectRatio:'16/9', background:'#0D0D0D', display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
                         {v.status === 'ready'
-                          ? <Play className="w-10 h-10 text-muted group-hover:text-accent transition-colors" />
+                          ? <Play size={32} fill="#F5F0E8" color="#F5F0E8" style={{ opacity:0.7 }}/>
                           : v.status === 'generating'
-                          ? <div className="text-center">
-                              <Loader2 className="w-8 h-8 animate-spin text-muted mx-auto mb-2" />
-                              <p className="text-xs text-muted">Generating AI video…</p>
+                          ? <div style={{ textAlign:'center' }}>
+                              <Loader2 size={24} style={{ animation:'spin 1s linear infinite', color:'#8C8070', display:'block', margin:'0 auto 8px' }}/>
+                              <p style={{ fontSize:12, color:'#8C8070' }}>Generating…</p>
                             </div>
-                          : <AlertCircle className="w-8 h-8 text-red-400" />}
-                        <div className="absolute top-2 right-2">
-                          <span className="text-[10px] bg-ink/70 text-white px-2 py-0.5 rounded-full">{v.video_style}</span>
+                          : <AlertCircle size={24} color="#EF4444"/>
+                        }
+                        <div style={{ position:'absolute', top:10, right:10, background:'rgba(245,240,232,0.12)', backdropFilter:'blur(4px)', borderRadius:6, padding:'3px 8px' }}>
+                          <span style={{ fontSize:10, color:'#F5F0E8', fontWeight:500 }}>{v.video_style}</span>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <p className="font-semibold text-sm mb-1 truncate">{v.title}</p>
-                        <p className="text-xs text-muted mb-3">
-                          {formatDistanceToNow(new Date(v.created_at), { addSuffix: true })}
-                        </p>
+                      {/* Info */}
+                      <div style={{ padding:'14px 16px' }}>
+                        <p style={{ fontWeight:600, fontSize:14, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{v.title}</p>
+                        <p style={{ fontSize:12, color:'#8C8070', marginBottom:10 }}>{formatDistanceToNow(new Date(v.created_at), { addSuffix:true })}</p>
                         {v.status === 'ready' && v.public_url && (
-                          <a href={v.public_url} download
-                            className="flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
-                            <Download className="w-3.5 h-3.5" /> Download MP4
+                          <a href={v.public_url} download style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, color:'#0D0D0D', textDecoration:'none', background:'#D4CCBE', padding:'6px 12px', borderRadius:8, transition:'background 0.15s' }}>
+                            <Download size={12}/> Download MP4
                           </a>
                         )}
                       </div>
