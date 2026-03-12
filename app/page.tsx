@@ -17,10 +17,13 @@ export default function LandingPage() {
         options: {
           redirectTo: `${location.origin}/auth/callback`,
           scopes: [
-            'https://www.googleapis.com/auth/classroom.announcements.readonly',
-            'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
-            'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
             'https://www.googleapis.com/auth/classroom.courses.readonly',
+            'https://www.googleapis.com/auth/classroom.rosters.readonly',
+            'https://www.googleapis.com/auth/classroom.topics.readonly',
+            'https://www.googleapis.com/auth/classroom.announcements.readonly',
+            'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
+            'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
+            'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
             'https://www.googleapis.com/auth/drive.readonly',
           ].join(' '),
           queryParams: { access_type: 'offline', prompt: 'consent' },
@@ -168,6 +171,12 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section style={{ maxWidth:760, margin:'0 auto', padding:'80px 40px 64px', textAlign:'center' }}>
+        <div className="fade-up d1" style={{ marginBottom:24 }}>
+          <span className="badge">
+            <span className="badge-dot" />
+            NotebookLM · Supabase · Google Classroom
+          </span>
+        </div>
 
         <h1 className="fade-up d2" style={{ fontFamily:'Playfair Display, serif', fontSize:'clamp(44px,7vw,80px)', fontWeight:900, lineHeight:0.95, letterSpacing:'-0.02em', marginBottom:24 }}>
           From classroom slides
