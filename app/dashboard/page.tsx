@@ -6,9 +6,9 @@ import {
   BookOpen, Video, RefreshCw, LogOut, Play, Loader2,
   AlertCircle, Download, LayoutGrid, Pencil, Archive,
   ArchiveRestore, X, Check, MoreVertical, Eye, EyeOff,
-  Users, GraduationCap, Tag, Megaphone, ClipboardList,
+  Users, Tag, Megaphone, ClipboardList,
   FileText, ChevronDown, ChevronRight, ExternalLink, Star,
-  MessageSquare, Calendar, Link2, Youtube, FileSpreadsheet,
+  Calendar, Link2, Youtube, FileSpreadsheet,
   Sun, Moon, Menu, ArrowLeft
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -17,13 +17,11 @@ import { formatDistanceToNow, format } from 'date-fns'
 type Course      = { id: string; name: string; custom_name?: string; section?: string; room?: string; description?: string; enrollmentCode?: string; archived?: boolean }
 type Post        = { id: string; title: string; post_type: string; status: string; attachment_count: number; created_time: string }
 type VideoItem   = { id: string; title: string; status: string; public_url?: string; video_style: string; created_at: string }
-type Student     = { userId: string; profile?: { name?: { fullName?: string }; emailAddress?: string } }
 type Teacher     = { userId: string; profile?: { name?: { fullName?: string }; emailAddress?: string } }
 type Topic       = { topicId: string; name: string }
 type Announcement = { id: string; text?: string; state?: string; creationTime?: string; materials?: any[]; alternateLink?: string }
 type CourseWork  = { id: string; title: string; workType?: string; state?: string; dueDate?: any; maxPoints?: number; description?: string; materials?: any[]; alternateLink?: string; topicId?: string; creationTime?: string }
 type Material    = { id: string; title: string; state?: string; materials?: any[]; alternateLink?: string; topicId?: string; creationTime?: string }
-type Submission  = { id: string; userId: string; state?: string; late?: boolean; assignedGrade?: number; draftGrade?: number }
 
 // ── Theme ──────────────────────────────────────────────────
 type Theme = 'light' | 'dark'
@@ -198,14 +196,11 @@ export default function Dashboard() {
 
   const [posts,         setPosts]         = useState<Post[]>([])
   const [videos,        setVideos]        = useState<VideoItem[]>([])
-  const [students,      setStudents]      = useState<Student[]>([])
   const [teachers,      setTeachers]      = useState<Teacher[]>([])
   const [topics,        setTopics]        = useState<Topic[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [courseWork,    setCourseWork]    = useState<CourseWork[]>([])
   const [materials,     setMaterials]     = useState<Material[]>([])
-  const [submissions,   setSubmissions]   = useState<Record<string, Submission[]>>({})
-  const [loadingSub,    setLoadingSub]    = useState<string|null>(null)
 
   const th = T[theme]
 
@@ -250,8 +245,8 @@ export default function Dashboard() {
   const loadCourseData = useCallback(async (courseId: string) => {
     setLoading(true)
     setErrors({})
-    setPosts([]); setVideos([]); setStudents([]); setTeachers([])
-    setTopics([]); setAnnouncements([]); setCourseWork([]); setMaterials([]); setSubmissions({})
+    setPosts([]); setVideos([]); setTeachers([])
+    setTopics([]); setAnnouncements([]); setCourseWork([]); setMaterials([])
 
     const safe = async (key: string, fn: () => Promise<void>) => {
       try { await fn() } catch (e: any) { setErrors(prev => ({ ...prev, [key]: e.message })) }
@@ -260,7 +255,6 @@ export default function Dashboard() {
     await Promise.all([
       safe('posts',   async () => { const r = await supabase.from('posts').select('*').eq('course_id', courseId).order('created_time',{ascending:false}); setPosts(r.data||[]) }),
       safe('videos',  async () => { const r = await supabase.from('videos').select('*').eq('course_id', courseId).order('created_at',{ascending:false}); setVideos(r.data||[]) }),
-      safe('students', async () => { const r = await fetch(`/api/classroom/students?courseId=${courseId}`); const d = await r.json(); if(d.error) throw new Error(d.error); setStudents(d.students||[]) }),
       safe('teachers', async () => { const r = await fetch(`/api/classroom/teachers?courseId=${courseId}`); const d = await r.json(); if(d.error) throw new Error(d.error); setTeachers(d.teachers||[]) }),
       safe('topics',  async () => { const r = await fetch(`/api/classroom/topics?courseId=${courseId}`); const d = await r.json(); if(d.error) throw new Error(d.error); setTopics(d.topics||[]) }),
       safe('announcements', async () => { const r = await fetch(`/api/classroom/announcements?courseId=${courseId}`); const d = await r.json(); if(d.error) throw new Error(d.error); setAnnouncements(d.announcements||[]) }),
@@ -271,16 +265,6 @@ export default function Dashboard() {
 
   useEffect(() => { if (activeCourse) loadCourseData(activeCourse) }, [activeCourse, loadCourseData])
 
-  const loadSubmissions = async (courseWorkId: string) => {
-    if (submissions[courseWorkId] !== undefined || loadingSub) return
-    setLoadingSub(courseWorkId)
-    try {
-      const r = await fetch(`/api/classroom/submissions?courseId=${activeCourse}&courseWorkId=${courseWorkId}`)
-      const d = await r.json()
-      setSubmissions(s=>({ ...s, [courseWorkId]: d.submissions||[] }))
-    } catch { setSubmissions(s=>({ ...s, [courseWorkId]: [] })) }
-    setLoadingSub(null)
-  }
 
   const syncCourse = async () => {
     if (!activeCourse) return
@@ -564,7 +548,6 @@ export default function Dashboard() {
                       <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
                         <div className="stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
                           {[
-                            { label:'Students',      value:students.length,    icon:<GraduationCap size={14}/> },
                             { label:'Teachers',      value:teachers.length,    icon:<Users size={14}/> },
                             { label:'Assignments',   value:courseWork.filter(w=>w.workType==='ASSIGNMENT').length, icon:<ClipboardList size={14}/> },
                             { label:'Questions',     value:courseWork.filter(w=>w.workType?.includes('QUESTION')).length, icon:<BookOpen size={14}/> },
@@ -704,7 +687,6 @@ export default function Dashboard() {
                                 <Section key={key} title={label} count={items.length} icon={<Tag size={14}/>} th={th}>
                                   <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                                     {items.map(w=>{
-                                      const subs = submissions[w.id]
                                       return (
                                         <div key={w.id} className="wcard" style={workCardStyle}>
                                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, flexWrap:'wrap' }}>
@@ -724,30 +706,8 @@ export default function Dashboard() {
                                             </div>
                                             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
                                               {w.alternateLink&&<a href={w.alternateLink} target="_blank" rel="noreferrer" style={{ fontSize:11, color:th.textMuted, display:'flex', gap:4, alignItems:'center', textDecoration:'none' }}><ExternalLink size={11}/> Open</a>}
-                                              {w.workType==='ASSIGNMENT'&&(
-                                                <button onClick={()=>loadSubmissions(w.id)} className="pill-btn" style={{ fontSize:11, padding:'4px 10px' }}>
-                                                  {loadingSub===w.id?<Loader2 size={10} className="spin"/>:<MessageSquare size={10}/>}
-                                                  {subs!==undefined?`${subs.length} submissions`:'View submissions'}
-                                                </button>
-                                              )}
                                             </div>
                                           </div>
-                                          {subs&&subs.length>0&&(
-                                            <div style={{ marginTop:12, borderTop:`1px solid ${th.border}`, paddingTop:10 }}>
-                                              <p style={{ fontSize:11, fontWeight:600, color:th.textMuted, marginBottom:8 }}>Submissions ({subs.length})</p>
-                                              {subs.map(s=>(
-                                                <div key={s.id} className="sub-row">
-                                                  <Avatar name={s.userId} size={22}/>
-                                                  <span style={{ flex:1, color:th.textMuted, fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.userId}</span>
-                                                  <StatePill state={s.state}/>
-                                                  {s.late&&<span style={{ fontSize:10, color:'#9A3412', background:'#FFF7ED', padding:'2px 6px', borderRadius:100, fontWeight:600 }}>Late</span>}
-                                                  {s.assignedGrade!=null&&<span style={{ fontSize:11, fontWeight:600, color:th.text }}>{s.assignedGrade}/{w.maxPoints??'?'}</span>}
-                                                  {s.draftGrade!=null&&s.assignedGrade==null&&<span style={{ fontSize:11, color:th.textMuted }}>Draft: {s.draftGrade}</span>}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                          {subs!==undefined&&subs.length===0&&<p style={{ fontSize:12, color:th.textMuted, marginTop:8 }}>No submissions yet.</p>}
                                         </div>
                                       )
                                     })}
@@ -760,7 +720,8 @@ export default function Dashboard() {
 
                     {/* PEOPLE */}
                     {tab==='people' && (
-                      <div className="people-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
+                      <div style={{ display:'flex', flexDirection:'column', gap:16, maxWidth:600 }}>
+                        {/* Teachers */}
                         <div style={cardStyle}>
                           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:14 }}>
                             <Users size={14} color={th.textMuted}/>
@@ -780,26 +741,20 @@ export default function Dashboard() {
                                 </div>
                               ))}
                         </div>
-                        <div style={cardStyle}>
-                          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:14 }}>
-                            <GraduationCap size={14} color={th.textMuted}/>
-                            <span style={{ fontSize:13, fontWeight:600, color:th.text }}>Students ({students.length})</span>
+                        {/* Students - not available for student accounts */}
+                        <div style={{ ...cardStyle, opacity:0.7 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                            <div style={{ width:36, height:36, borderRadius:10, background:th.chipBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <Users size={16} color={th.textMuted}/>
+                            </div>
+                            <div>
+                              <p style={{ fontSize:13, fontWeight:600, color:th.text }}>Classmates</p>
+                              <p style={{ fontSize:11, color:th.textMuted }}>Not available for student accounts</p>
+                            </div>
                           </div>
-                          {errors.students
-                            ? <p style={{ fontSize:12, color:'#991B1B' }}>{errors.students}</p>
-                            : students.length===0
-                            ? <p style={{ fontSize:12, color:th.textMuted }}>No students enrolled.</p>
-                            : <div style={{ maxHeight:480, overflowY:'auto' }}>
-                                {students.map(s=>(
-                                  <div key={s.userId} className="person-row">
-                                    <Avatar name={s.profile?.name?.fullName} size={32}/>
-                                    <div>
-                                      <p style={{ fontSize:13, fontWeight:500, color:th.text }}>{s.profile?.name?.fullName||'Student'}</p>
-                                      <p style={{ fontSize:11, color:th.textMuted }}>{s.profile?.emailAddress||''}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>}
+                          <div style={{ background:th.bg, border:`1px dashed ${th.border}`, borderRadius:10, padding:'12px 14px', fontSize:12, color:th.textMuted, lineHeight:1.6 }}>
+                            🔒 Google Classroom restricts student roster access to teachers and admins only. As a student, you can only view the teachers in your course.
+                          </div>
                         </div>
                       </div>
                     )}
