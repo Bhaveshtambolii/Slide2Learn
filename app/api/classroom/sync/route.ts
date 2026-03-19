@@ -23,10 +23,6 @@ export async function POST(request: Request) {
       .from('posts').select('id').eq('course_id', courseId).eq('user_id', userId)
     const processedIds = new Set((existing || []).map((r: any) => r.id))
 
-    // Only use scopes we have:
-    // ✅ announcements.readonly  → fetchAnnouncements
-    // ✅ courseworkmaterials.readonly → fetchCourseMaterials
-    // ❌ coursework.me.readonly  → fetchCourseWork REMOVED
     const [announcements, materials] = await Promise.all([
       fetchAnnouncements(token, courseId),
       fetchCourseMaterials(token, courseId),
@@ -37,19 +33,25 @@ export async function POST(request: Request) {
 
     if (newPosts.length === 0) return NextResponse.json({ newPosts: 0 })
 
-    const rows = newPosts.map((post: any) => ({
-      id:               post.id,
-      course_id:        courseId,
-      user_id:          userId,
-      title:            post.title || post.text?.slice(0, 100) || 'Untitled',
-      post_type:        post.workType ? 'material' : 'announcement',
-      created_time:     post.creationTime || post.createdTime,
-      attachment_count: extractAttachments(post.materials || []).length,
-      status:           'pending',
-    }))
+    const rows = newPosts.map((post: any) => {
+      // ← extract attachments and save them
+      const attachments = extractAttachments(post.materials || [])
+      return {
+        id:               post.id,
+        course_id:        courseId,
+        user_id:          userId,
+        title:            post.title || post.text?.slice(0, 100) || 'Untitled',
+        post_type:        post.workType ? 'material' : 'announcement',
+        created_time:     post.creationTime || post.createdTime,
+        attachment_count: attachments.length,
+        attachments:      JSON.stringify(attachments), // ← save Drive links here
+        status:           'pending',
+      }
+    })
 
     await admin.from('posts').insert(rows)
     return NextResponse.json({ newPosts: newPosts.length, posts: rows })
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
