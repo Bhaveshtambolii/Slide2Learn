@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         created_time:     post.creationTime || post.createdTime,
         attachment_count: attachments.length,
         attachments:      JSON.stringify(attachments), // ← saves Drive links
+        google_token:     token,          // ← add this
         status:           'pending',
       }
     })
