@@ -34,7 +34,6 @@ export async function POST(request: Request) {
     if (newPosts.length === 0) return NextResponse.json({ newPosts: 0 })
 
     const rows = newPosts.map((post: any) => {
-      // ← extract attachments and save them
       const attachments = extractAttachments(post.materials || [])
       return {
         id:               post.id,
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
         post_type:        post.workType ? 'material' : 'announcement',
         created_time:     post.creationTime || post.createdTime,
         attachment_count: attachments.length,
-        attachments:      JSON.stringify(attachments), // ← save Drive links here
+        attachments:      JSON.stringify(attachments), // ← saves Drive links
         status:           'pending',
       }
     })
